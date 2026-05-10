@@ -17,7 +17,6 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    # The branches below must be a subset of the branches above
     branches: [ "main" ]
   schedule:
     - cron: '15 20 * * 3'
@@ -34,29 +33,35 @@ jobs:
     name: Codacy Security Scan
     runs-on: ubuntu-latest
     steps:
-      # Checkout the repository to the GitHub Actions runner
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
       - name: Run Codacy Analysis CLI
         uses: codacy/codacy-analysis-cli-action@d840f886c4bd4edc059706d09c6a1586111c540b
         with:
-          # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
-          # You can also omit the token and run the tools that support default configurations
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           verbose: true
           output: results.sarif
           format: sarif
-          # Adjust severity of non-security issues
           gh-code-scanning-compat: true
-          # Force 0 exit code to allow SARIF file generation
-          # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
 
-      # Upload the SARIF file generated in the previous step
+      # NEW STEP: Fix the SARIF file structure to meet GitHub's strict requirements
+      - name: Format SARIF file for GitHub compatibility
+        shell: bash
+        run: |
+          jq '.runs |= (
+            group_by(.tool.driver.name) | map(
+              . as $group | .[0] as $first |
+              $first + {
+                "automationDetails": ($first.automationDetails + { "id": ("codacy/" + $first.tool.driver.name) }),
+                "results": ($group | map(.results // []) | flatten)
+              }
+            )
+          )' results.sarif > results-fixed.sarif
+
+      # UPDATED STEP: Upgraded to v4 and pointing to the newly fixed file
       - name: Upload SARIF results file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: results.sarif
-          category: codacy-security-scan # <-- THIS IS THE NEW LINE THAT FIXES THE ERROR
+          sarif_file: results-fixed.sarif
