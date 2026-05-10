@@ -65,3 +65,18 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results-fixed.sarif
+      # ... (after your existing Codacy Analysis steps)
+
+      # 1. GENERATE YOUR COVERAGE (Example for Node/Python/etc.)
+      # Make sure your test runner outputs a standard format like LCOV or Cobertura
+      - name: Run tests and collect coverage
+        run: |
+          npm test -- --coverage  # Replace this with your actual test command
+
+      # 2. UPLOAD TO CODACY
+      - name: Run Codacy Coverage Reporter
+        uses: codacy/codacy-coverage-reporter-action@v1
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          # Path to your coverage report (e.g., coverage/lcov.info)
+          coverage-reports: coverage/lcov.info
