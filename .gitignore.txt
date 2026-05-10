@@ -1,0 +1,9 @@
+# Ignore compiled files
+*.class
+*.exe
+*.o
+
+# Ignore IDE folders
+.idea/
+.vscode/
+*.suo
