@@ -73,3 +73,19 @@ jobs:
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest --build-config ${{ matrix.build_type }}
+    - name: Generate Coverage Report
+      # Only run this on the Ubuntu/GCC job so it doesn't duplicate or fail on Windows
+      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'gcc'
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: |
+        sudo apt-get update && sudo apt-get install -y gcovr
+        # Generate the Cobertura XML report that Codacy needs
+        gcovr --root ${{ github.workspace }} --xml-pretty -o coverage.xml
+
+    - name: Upload Coverage to Codacy
+      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'gcc'
+      uses: codacy/codacy-coverage-reporter-action@v1
+      with:
+        project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        coverage-reports: ${{ steps.strings.outputs.build-output-dir }}/coverage.xml
+ 
